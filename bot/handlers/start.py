@@ -10,7 +10,7 @@ async def cmd_start(message: Message):
     """
     хэндлер /start отправляет приветсвенное сообщение пользователю
     """
-    await message.answer('Приветственное сообщение!')
+    await message.answer(f'Привет, {str(message.from_user.first_name)}!')
 
 @start_router.message(Command('history'))
 async def show_history(message: Message, pool):

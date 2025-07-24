@@ -1,0 +1,58 @@
+version: "3.9"
+services:
+  main_bot:
+    build:
+      context: .
+      dockerfile: ./docker/bot/Dockerfile
+    ports:
+      - "8081:8081"
+    volumes:
+      - .:/code
+    links:
+      - db
+#      - dbmate
+    networks:
+      project_net:
+      db_net:
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - SRVC_CONFIG=.env
+  db:
+    image: postgres:14
+    environment:
+      - POSTGRES_DB=${POSTGRES_DB}
+      - POSTGRES_USER=${POSTGRES_USER}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    ports:
+      - "5433:5432"
+    volumes:
+        - ./pgdata:/var/lib/postgresql/data/
+    networks:
+      - db_net
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+  dbmate:
+    image: amacneil/dbmate
+    command: -d "/code/db/migrations" up
+    volumes:
+      - .:/code
+    links:
+      - db
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      db_net:
+    environment:
+      - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}?sslmode=disable
+
+networks:
+  project_net:
+    driver: overlay
+    attachable: true
+  db_net:

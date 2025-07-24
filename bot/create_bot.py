@@ -6,7 +6,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from decouple import config
 from middleware.db import DBMiddleware
 from db_handler.database import create_pool
-
+from handlers.start import start_router
 
 logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
@@ -21,3 +21,13 @@ async def setup_database():
     except Exception:
         raise RuntimeError('ошибка подключения к базе данных')
     return pool
+
+
+async def main():
+    """
+    Основная функция запуска бота и бд.
+    """
+    await setup_database()
+    dp.include_router(start_router)
+    await bot.delete_webhook(drop_pending_updates=True)
+    await dp.start_polling(bot)

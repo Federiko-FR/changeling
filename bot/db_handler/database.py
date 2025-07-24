@@ -6,8 +6,9 @@ async def create_pool():
     Создает пулл подключений к бд
     :return: Pool
     """
-    return await asyncpg.create_pool(config('PG_LINK'))
-
+    return await asyncpg.create_pool(
+        dsn=f"postgresql://{config('POSTGRES_USER')}:{config('POSTGRES_PASSWORD')}@db:5432/{config('POSTGRES_DB')}?sslmode=disable"
+    )
 async def add_message(pool, user_id: int, message_text: str):
     """
     Добавляет сообщение в бд
