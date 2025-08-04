@@ -10,7 +10,7 @@ services:
       - .:/code
     links:
       - db
-#      - dbmate
+      - dbmate
     networks:
       project_net:
       db_net:

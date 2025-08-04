@@ -1,5 +1,8 @@
+from typing import Union
 import asyncpg
 from decouple import config
+from aiogram import Dispatcher
+from middleware.db import DBMiddleware
 
 async def create_pool():
     """
@@ -38,3 +41,15 @@ async def get_last_messages(pool, user_id: int, limit: int = 5):
             ORDER BY dt DESC
             LIMIT $2
         """, user_id, limit)
+
+
+async def setup_database(dp: Dispatcher):
+    try:
+        pool = await create_pool()
+        dp.update.middleware(DBMiddleware(pool))
+    except Exception:
+        raise RuntimeError('ошибка подключения к базе данных')
+    return pool
+
+async def close_db(db: Union[asyncpg.Pool, asyncpg.Connection]):
+    await db.close()
