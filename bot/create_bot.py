@@ -68,7 +68,8 @@ async def on_shutdown(app: web.Application):
     state: State = app.state
     if not state:
         return
-
+    await state.bot.delete_webhook()
+    logger.info("WebHook CLOSED")
     await close_db(state.db_pool)
     logger.info("PostgreSQL CLOSED")
 
