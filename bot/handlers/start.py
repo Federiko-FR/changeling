@@ -48,7 +48,7 @@ async def save_message(message: Message,bot: Bot, pool):
         return
 
     user_text = message.text
-    headers = {"Authorization": f"Bearer {config('HUGGINFACE_API_TOKEN')}",
+    headers = {"Authorization": f"Bearer {config('HUGGINGFACE_API_TOKEN')}",
         "Content-Type": "application/json"}
     api_url = config('HUGGINGFACE_API_URL')
     payload = {
