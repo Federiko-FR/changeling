@@ -1,13 +1,17 @@
+from typing import Union
 import asyncpg
 from decouple import config
+from aiogram import Dispatcher
+from middleware.db import DBMiddleware
 
 async def create_pool():
     """
     Создает пулл подключений к бд
     :return: Pool
     """
-    return await asyncpg.create_pool(config('PG_LINK'))
-
+    return await asyncpg.create_pool(
+        dsn=f"postgresql://{config('POSTGRES_USER')}:{config('POSTGRES_PASSWORD')}@db:5432/{config('POSTGRES_DB')}?sslmode=disable"
+    )
 async def add_message(pool, user_id: int, message_text: str):
     """
     Добавляет сообщение в бд
@@ -37,3 +41,15 @@ async def get_last_messages(pool, user_id: int, limit: int = 5):
             ORDER BY dt DESC
             LIMIT $2
         """, user_id, limit)
+
+
+async def setup_database(dp: Dispatcher):
+    try:
+        pool = await create_pool()
+        dp.update.middleware(DBMiddleware(pool))
+    except Exception:
+        raise RuntimeError('ошибка подключения к базе данных')
+    return pool
+
+async def close_db(db: Union[asyncpg.Pool, asyncpg.Connection]):
+    await db.close()

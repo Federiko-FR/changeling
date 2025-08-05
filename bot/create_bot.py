@@ -1,23 +1,75 @@
 import logging
+import asyncio
+from typing import Union
+import asyncpg
 from aiogram import Bot, Dispatcher
+from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiogram.client.default import DefaultBotProperties
 from aiogram.enums import ParseMode
 from aiogram.fsm.storage.memory import MemoryStorage
 from decouple import config
-from middleware.db import DBMiddleware
-from db_handler.database import create_pool
+from aiohttp import web
+from middleware.bot import State
+from db_handler.database import close_db, setup_database
+from handlers.start import start_router
 
-
-logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
 logger = logging.getLogger(__name__)
 
-bot = Bot(token=config('TOKEN'), default=DefaultBotProperties(parse_mode=ParseMode.HTML))
-dp = Dispatcher(storage=MemoryStorage())
+def main():
+    """
+    Основная функция запуска бота и бд.
+    """
+    logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+    dp = Dispatcher(storage=MemoryStorage())
+    bot = Bot(token=config('TOKEN'), default=DefaultBotProperties(parse_mode=ParseMode.HTML))
+    loop = asyncio.get_event_loop()
+    app = web.Application(logger=logger)
+    state = State(
+        app=app,
+        bot=bot,
+        dp=dp,
+        loop=loop
+    )
+    app.state = state
+    bot.state = state
+    app.on_startup.append(on_startup)
+    app.on_shutdown.append(on_shutdown)
+    webhook_requests_handler = SimpleRequestHandler(
+        dispatcher=dp,
+        bot=bot
+    )
+    webhook_requests_handler.register(app, path="/webhook/")
+    setup_application(app, dp, bot=bot)
+    web.run_app(
+        app,
+        host="0.0.0.0",
+        port=8081,
+        loop=loop
+    )
 
-async def setup_database():
-    try:
-        pool = await create_pool()
-        dp.update.middleware(DBMiddleware(pool))
-    except Exception:
-        raise RuntimeError('ошибка подключения к базе данных')
-    return pool
+async def on_startup(app: web.Application):
+    state: State = app.state
+    if not state:
+        raise RuntimeError
+    state.db_pool = await setup_database(state.dp)
+    logger.info("PostgreSQL CONNECTED")
+
+    state.dp.include_router(start_router)
+    logger.info("Routes LOADED")
+
+    await state.bot.set_webhook(
+        url=f"{config('TUNA_URL')}/webhook/",
+        drop_pending_updates=True
+    )
+    logger.info("Bot started")
+
+
+async def on_shutdown(app: web.Application):
+    state: State = app.state
+    if not state:
+        return
+    await state.bot.delete_webhook()
+    logger.info("WebHook CLOSED")
+    await close_db(state.db_pool)
+    logger.info("PostgreSQL CLOSED")
+
