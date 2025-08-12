@@ -10,7 +10,8 @@ from aiohttp import web
 from middleware.bot import State
 from db_handler.database import close_db, setup_database
 from handlers.start import start_router, set_bot_commands
-from handlers.buttons import inline_router
+from handlers.inline_buttons import inline_router
+from handlers.reply_buttons import reply_router
 
 logger = logging.getLogger(__name__)
 
@@ -55,12 +56,17 @@ async def on_startup(app: web.Application):
 
     await set_bot_commands(state.bot)
 
-    state.dp.include_router(start_router)
     state.dp.include_router(inline_router)
+    state.dp.include_router(reply_router)
+    state.dp.include_router(start_router)
     logger.info("Routes LOADED")
 
     await state.bot.set_webhook(
         url=f"{config('TUNA_URL')}/webhook/",
+        allowed_updates=[
+            "message",
+            "callback_query",
+        ],
         drop_pending_updates=True
     )
     logger.info("Bot started")
