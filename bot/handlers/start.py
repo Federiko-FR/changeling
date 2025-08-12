@@ -1,15 +1,26 @@
 from aiogram import Router, Bot
 from aiogram.filters import CommandStart, Command
-from aiogram.types import Message
+from aiogram.types import Message, BotCommand
 from db_handler.database import add_message, get_last_messages
+from handlers.buttons import inline_kb
 import aiohttp
 import asyncio
 from decouple import config
 from aiogram.utils.text_decorations import html_decoration as hd
 import re
 from html import unescape
+import logging
 
 start_router = Router()
+logger = logging.getLogger(__name__)
+
+async def set_bot_commands(bot: Bot):
+    commands = [
+        BotCommand(command="start", description="Начать работу с ботом"),
+        BotCommand(command="history", description="Показать историю сообщений")
+    ]
+    await bot.set_my_commands(commands)
+    logger.info("Команды бота обновлены")
 
 @start_router.message(CommandStart())
 async def cmd_start(message: Message):
@@ -18,8 +29,8 @@ async def cmd_start(message: Message):
     """
     await message.answer(f'Привет, {str(message.from_user.first_name)}!')
 
-@start_router.message(Command('history'))
-async def show_history(message: Message, pool):
+@start_router.message(Command("history"))
+async def cmd_history(message: Message, pool):
     """
     хэндлер /history
     :return: последние 5 сообщений пользователя, если таких нет, то сообщает об этом
@@ -64,7 +75,7 @@ async def save_message(message: Message,bot: Bot, pool):
                     api_url,
                     headers=headers,
                     json=payload,
-                    timeout=aiohttp.ClientTimeout(total=30)
+                    timeout=aiohttp.ClientTimeout(total=100)
             ) as response:
                 if response.status == 200:
                     data = await response.json()
@@ -76,7 +87,7 @@ async def save_message(message: Message,bot: Bot, pool):
                         ai_response = str(data)
                     safe_response = hd.quote(ai_response)
                     await bot.delete_message(message.chat.id, sent_message.message_id)
-                    await message.answer(safe_response, parse_mode=None)
+                    await message.answer(safe_response, reply_markup=inline_kb, parse_mode=None)
                 else:
                     error = await response.text()
                     await message.answer(f"Ошибка API (код {response.status}): {error[:500]}...")

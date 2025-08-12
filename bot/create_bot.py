@@ -1,7 +1,5 @@
 import logging
 import asyncio
-from typing import Union
-import asyncpg
 from aiogram import Bot, Dispatcher
 from aiogram.webhook.aiohttp_server import SimpleRequestHandler, setup_application
 from aiogram.client.default import DefaultBotProperties
@@ -11,7 +9,8 @@ from decouple import config
 from aiohttp import web
 from middleware.bot import State
 from db_handler.database import close_db, setup_database
-from handlers.start import start_router
+from handlers.start import start_router, set_bot_commands
+from handlers.buttons import inline_router
 
 logger = logging.getLogger(__name__)
 
@@ -54,7 +53,10 @@ async def on_startup(app: web.Application):
     state.db_pool = await setup_database(state.dp)
     logger.info("PostgreSQL CONNECTED")
 
+    await set_bot_commands(state.bot)
+
     state.dp.include_router(start_router)
+    state.dp.include_router(inline_router)
     logger.info("Routes LOADED")
 
     await state.bot.set_webhook(
@@ -62,6 +64,8 @@ async def on_startup(app: web.Application):
         drop_pending_updates=True
     )
     logger.info("Bot started")
+    logger.info(await state.bot.get_my_commands())
+    logger.info("Registered routers: %s", state.dp.sub_routers)
 
 
 async def on_shutdown(app: web.Application):
