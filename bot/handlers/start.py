@@ -46,7 +46,7 @@ async def cmd_history(message: Message, pool):
     await message.answer(response)
 
 
-@start_router.message(F.data != "повторный запрос")
+@start_router.message()
 async def save_message(message: Message,bot: Bot, pool):
     """
     Обрабатывает сообщения пользователя:
