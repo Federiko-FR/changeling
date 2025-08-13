@@ -57,22 +57,22 @@ async def save_message(message: Message,bot: Bot, pool):
     """
     logger.info('сработал start')
     try:
-        await deep_seek_api(message, bot)
+        await deep_seek_api(message.text, message.chat.id, bot)
     finally:
         await add_message(pool, message.from_user.id, message.text)
 
 
 
-async def deep_seek_api(message: Message, bot: Bot):
-    user_text = message.text
+async def deep_seek_api(message: str, chat_id: int | str, bot: Bot):
+
     headers = {"Authorization": f"Bearer {config('HUGGINGFACE_API_TOKEN')}",
         "Content-Type": "application/json"}
     api_url = config('HUGGINGFACE_API_URL')
     payload = {
-        "messages": [{"role": "user", "content": user_text}],
+        "messages": [{"role": "user", "content": message}],
         "model": "deepseek-ai/DeepSeek-R1:novita"
     }
-    sent_message = await message.answer('погоди, я думаю!')
+    sent_message = await bot.send_message(chat_id=chat_id, text='погоди, я думаю!')
     try:
         async with aiohttp.ClientSession() as session:
             async with session.post(
@@ -90,15 +90,15 @@ async def deep_seek_api(message: Message, bot: Bot):
                     else:
                         ai_response = str(data)
                     safe_response = hd.quote(ai_response)
-                    await bot.delete_message(message.chat.id, sent_message.message_id)
-                    await message.answer(safe_response, reply_markup=get_inline_keyboard(), parse_mode=None)
+                    await bot.delete_message(chat_id=chat_id, message_id=sent_message.message_id)
+                    await bot.send_message(chat_id=chat_id,text= safe_response, reply_markup=get_inline_keyboard(), parse_mode=None)
                 else:
                     error = await response.text()
-                    await message.answer(f"Ошибка API (код {response.status}): {error[:500]}...")
+                    await bot.send_message(chat_id=chat_id, text=f"Ошибка API (код {response.status}): {error[:500]}...")
 
     except asyncio.TimeoutError:
-        await message.answer("Превышено время ожидания ответа от модели")
+        await bot.send_message(chat_id=chat_id, text="Превышено время ожидания ответа от модели")
     except aiohttp.ClientError as e:
-        await message.answer(f"Ошибка соединения: {str(e)}")
+        await bot.send_message(chat_id=chat_id, text=f"Ошибка соединения: {str(e)}")
     except Exception as e:
-        await message.answer(f"Неожиданная ошибка: {str(e)}")
+        await bot.send_message(chat_id=chat_id, text=f"Неожиданная ошибка: {str(e)}")
