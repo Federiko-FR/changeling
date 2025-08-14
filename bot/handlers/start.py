@@ -10,6 +10,8 @@ from aiogram.utils.text_decorations import html_decoration as hd
 import re
 from html import unescape
 import logging
+from telethon.sync import TelegramClient
+from telethon.tl.functions.messages import SendMessageRequest
 
 start_router = Router()
 logger = logging.getLogger(__name__)
@@ -102,3 +104,21 @@ async def deep_seek_api(message: str, chat_id: int | str, bot: Bot):
         await bot.send_message(chat_id=chat_id, text=f"Ошибка соединения: {str(e)}")
     except Exception as e:
         await bot.send_message(chat_id=chat_id, text=f"Неожиданная ошибка: {str(e)}")
+
+
+
+@start_router.message("send")
+async def send_message(message: Message):
+    api_id=1111
+    api_hash="111111"
+    phone_num="+711111"
+    user_text = message.text.replace("/send", "").strip()
+    if len(user_text) == 0:
+        return
+    with TelegramClient('session', api_id=api_id, api_hash=api_hash) as client:
+        client.connect()
+        if not client.is_user_authoritorized():
+            client.send_code_qequest(phone_num)
+            client.sign_in(phone_num, input("введите код из телеграма"))
+        client(SendMessageRequest(peer="", message=user_text))
+    await message.answer("сообщение отправлено")
